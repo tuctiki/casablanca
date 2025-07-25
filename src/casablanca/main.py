@@ -25,6 +25,18 @@ if __name__ == "__main__":
         output_dir = os.path.join("outputs", video_id)
         os.makedirs(output_dir, exist_ok=True)
 
+        transcript_path = os.path.join(output_dir, "transcript.txt")
+        expert_summary_path = os.path.join(output_dir, "expert_summary.md")
+        market_summary_path = os.path.join(output_dir, "market_summary.md")
+
+        # Check if all output files already exist
+        if os.path.exists(transcript_path) and \
+           os.path.exists(expert_summary_path) and \
+           os.path.exists(market_summary_path):
+            logging.info(f"All output files for {video_id} already exist. Reusing previous results.")
+            logging.info("Application finished.")
+            sys.exit(0)
+
         logging.info(f"Processing video URL: {video_url}")
         
         video_metadata = get_video_metadata(video_url)
