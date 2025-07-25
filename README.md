@@ -57,6 +57,18 @@ Example:
 python -m casablanca.main https://www.youtube.com/watch?v=erI6k_hnToE
 ```
 
+## Output
+
+The application will create an `outputs` directory in the project root. Inside this directory, a new folder will be created for each video, named after the video's ID. The output for each video will be saved in the following structure:
+
+```
+outputs/
+└───<video_id>/
+    ├───transcript.txt
+    ├───expert_summary.md
+    └───market_summary.md
+```
+
 ## Running Tests
 
 To run the unit tests for the project, make sure you have `pytest` installed (`pip install pytest`) and then run:
