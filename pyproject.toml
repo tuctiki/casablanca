@@ -5,6 +5,7 @@ description = "A YouTube transcript reader and summarizer"
 dependencies = [
     "youtube-transcript-api",
     "google-generativeai",
+    "google-api-python-client",
 ]
 
 [build-system]
