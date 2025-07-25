@@ -1,50 +1,20 @@
 import sys
 import os
-from youtube_transcript_api import YouTubeTranscriptApi
-import google.generativeai as genai
-
-def get_transcript(video_url):
-    try:
-        video_id = video_url.split("v=")[1].split("&")[0]
-        api = YouTubeTranscriptApi()
-        transcript_snippets = api.fetch(video_id)
-        transcript_content = "\n".join([snippet.text for snippet in transcript_snippets])
-        
-        filename = f"{video_id}.txt"
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(transcript_content)
-            
-        print(f"[LOG] Transcript saved to {filename}")
-        return transcript_content
-    except Exception as e:
-        print(f"[ERROR] Failed to get transcript: {e}")
-        return None
-
-def summarize_content(text, prompt):
-    try:
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not set.")
-            
-        genai.configure(api_key=api_key)
-        
-        model = genai.GenerativeModel('gemini-2.5-flash') # Using the specified model
-        print(f"[LOG] Sending request to Gemini API for prompt: {prompt[:50]}...")
-        response = model.generate_content(f"{prompt}\n\nTranscript:\n{text}")
-        return response.text
-    except Exception as e:
-        print(f"[ERROR] Gemini API summarization failed: {e}")
-        return "Error: Could not generate summary."
+from casablanca.transcript_utils import get_transcript
+from casablanca.llm_utils import summarize_content
 
 if __name__ == "__main__":
+    print("[LOG] Application started.")
     if len(sys.argv) != 2:
         print("Usage: python -m casablanca.main <youtube_video_url>")
+        print("[LOG] Application exited due to incorrect usage.")
     else:
         video_url = sys.argv[1]
-        print(f"[LOG] Fetching transcript for {video_url}")
+        print(f"[LOG] Processing video URL: {video_url}")
         transcript = get_transcript(video_url)
 
         if transcript:
+            print("[LOG] Transcript fetched successfully. Proceeding with summarization.")
             expert_opinions_prompt = """
             Based on the provided transcript, make a detailed breakdown on the experts' opinions with their name and position.
             """
@@ -64,3 +34,6 @@ if __name__ == "__main__":
             print(market_summary)
 
             print("\n[IMPORTANT] Ensure you have installed the Google Generative AI library (pip install google-generativeai) and set your GEMINI_API_KEY environment variable.")
+        else:
+            print("[ERROR] Failed to fetch transcript. Exiting summarization process.")
+    print("[LOG] Application finished.")
