@@ -6,7 +6,7 @@ def get_transcript(video_url):
         print(f"[LOG] Attempting to fetch transcript for video ID: {video_id}")
         api = YouTubeTranscriptApi()
         transcript_snippets = api.fetch(video_id)
-        transcript_content = "\n".join([snippet.text for snippet in transcript_snippets])
+        transcript_content = "\n".join([snippet['text'] for snippet in transcript_snippets])
         
         filename = f"{video_id}.txt"
         with open(filename, "w", encoding="utf-8") as f:
