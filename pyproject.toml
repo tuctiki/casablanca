@@ -1,0 +1,17 @@
+[project]
+name = "casablanca"
+version = "0.1.0"
+description = "A YouTube transcript reader and summarizer"
+dependencies = [
+    "youtube-transcript-api",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+casablanca = ["*.txt"]
