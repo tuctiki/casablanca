@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from casablanca.transcript_utils import get_transcript
 from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled
 
@@ -7,10 +7,11 @@ from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled
 def test_get_transcript_success(mock_youtube_transcript_api):
     # Mock the fetch method to return a sample transcript
     mock_instance = mock_youtube_transcript_api.return_value
-    mock_instance.fetch.return_value = [
-        {'text': 'Hello', 'start': 0.0, 'duration': 1.0},
-        {'text': 'World', 'start': 1.0, 'duration': 1.0}
-    ]
+    mock_snippet1 = MagicMock()
+    mock_snippet1.text = 'Hello'
+    mock_snippet2 = MagicMock()
+    mock_snippet2.text = 'World'
+    mock_instance.fetch.return_value = [mock_snippet1, mock_snippet2]
 
     video_url = "https://www.youtube.com/watch?v=test_video_id"
     transcript = get_transcript(video_url)
