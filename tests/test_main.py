@@ -3,11 +3,12 @@ import os
 import shutil
 from unittest.mock import patch, MagicMock
 from casablanca import main
+from casablanca.config import OBSIDIAN_VAULT_PATH
 
 # Helper function to run the main script with arguments
 def run_main(args):
     with patch('sys.argv', ['casablanca/main.py'] + args):
-        with patch('casablanca.main.configure_logging'), patch('casablanca.main.clear_log_handlers'):
+        with patch('casablanca.main.configure_logging'):
             return main.run_casablanca(args[0], force=('--force' in args))
 
 @patch('casablanca.main.configure_logging')
@@ -22,11 +23,12 @@ def test_cache_skips_if_folder_exists(mock_move, mock_cat, mock_summary, mock_tr
     video_title = "Test Video Title"
     mock_get_video_metadata.return_value = {"title": video_title, "description": "Test Description", "publishedAt": "2023-10-26T12:00:00Z"}
     
-    obsidian_path = os.path.expanduser("~/Documents/obsidian/casablanca")
-    date_folder = main.datetime.now().strftime("%Y-%m-%d")
-    sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-    obsidian_dest_folder = os.path.join(obsidian_path, date_folder, sanitized_title)
-    os.makedirs(obsidian_dest_folder, exist_ok=True)
+    if OBSIDIAN_VAULT_PATH:
+        obsidian_path = os.path.expanduser(OBSIDIAN_VAULT_PATH)
+        date_folder = main.datetime.now().strftime("%Y-%m-%d")
+        sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        obsidian_dest_folder = os.path.join(obsidian_path, date_folder, sanitized_title)
+        os.makedirs(obsidian_dest_folder, exist_ok=True)
 
     # Act: Run the main script
     exit_code = run_main([video_url])
@@ -39,7 +41,8 @@ def test_cache_skips_if_folder_exists(mock_move, mock_cat, mock_summary, mock_tr
     mock_cat.assert_called_once()
 
     # Cleanup
-    shutil.rmtree(obsidian_dest_folder)
+    if OBSIDIAN_VAULT_PATH and os.path.exists(obsidian_dest_folder):
+        shutil.rmtree(obsidian_dest_folder)
 
 @patch('casablanca.main.configure_logging')
 @patch('casablanca.main.get_video_metadata')
@@ -53,11 +56,12 @@ def test_force_processes_if_folder_exists(mock_move, mock_cat, mock_summary, moc
     video_title = "Test Video Title"
     mock_get_video_metadata.return_value = {"title": video_title, "description": "Test Description", "publishedAt": "2023-10-26T12:00:00Z"}
     
-    obsidian_path = os.path.expanduser("~/Documents/obsidian/casablanca")
-    date_folder = main.datetime.now().strftime("%Y-%m-%d")
-    sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-    obsidian_dest_folder = os.path.join(obsidian_path, date_folder, sanitized_title)
-    os.makedirs(obsidian_dest_folder, exist_ok=True)
+    if OBSIDIAN_VAULT_PATH:
+        obsidian_path = os.path.expanduser(OBSIDIAN_VAULT_PATH)
+        date_folder = main.datetime.now().strftime("%Y-%m-%d")
+        sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        obsidian_dest_folder = os.path.join(obsidian_path, date_folder, sanitized_title)
+        os.makedirs(obsidian_dest_folder, exist_ok=True)
 
     # Act: Run the main script with the --force flag
     exit_code = run_main([video_url, "--force"])
@@ -70,4 +74,5 @@ def test_force_processes_if_folder_exists(mock_move, mock_cat, mock_summary, moc
     mock_cat.assert_called_once()
 
     # Cleanup
-    shutil.rmtree(obsidian_dest_folder)
+    if OBSIDIAN_VAULT_PATH and os.path.exists(obsidian_dest_folder):
+        shutil.rmtree(obsidian_dest_folder)

@@ -1,30 +1,17 @@
 import sys
 import os
 import logging
-import shutil
 import argparse
 from datetime import datetime
-from dotenv import load_dotenv
-from casablanca.transcript_utils import get_transcript, get_video_metadata
-from casablanca.llm_utils import summarize_content, get_video_category
-
-# Load environment variables from .env file
-load_dotenv()
-
-import sys
-import os
-import logging
-import shutil
-import argparse
-from datetime import datetime
-from dotenv import load_dotenv
-from casablanca.transcript_utils import get_transcript, get_video_metadata
-from casablanca.llm_utils import summarize_content, get_video_category
-
-# Load environment variables from .env file
-load_dotenv()
+from .transcript_utils import get_transcript, get_video_metadata
+from .llm_utils import summarize_content, get_video_category
+from .file_utils import move_to_obsidian
+from .config import OBSIDIAN_VAULT_PATH
 
 def configure_logging():
+    # Clear existing handlers to prevent duplicate logs in tests
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
     if not logging.root.handlers:
         logging.basicConfig(
             level=logging.INFO,
@@ -35,31 +22,6 @@ def configure_logging():
             ]
         )
 
-def clear_log_handlers():
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
-
-def move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path):
-    """Moves the generated markdown files to the Obsidian vault."""
-    obsidian_path = os.getenv("OBSIDIAN_VAULT_PATH")
-    if not obsidian_path:
-        logging.warning("OBSIDIAN_VAULT_PATH not set in .env file. Skipping move to Obsidian.")
-        return
-
-    # Sanitize video title for folder name
-    sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-    
-    # Create a user-friendly folder name
-    date_folder = video_date
-    obsidian_dest_folder = os.path.expanduser(os.path.join(obsidian_path, date_folder, sanitized_title))
-    
-    os.makedirs(obsidian_dest_folder, exist_ok=True)
-
-    # Move the files
-    shutil.move(expert_summary_path, os.path.join(obsidian_dest_folder, "expert_summary.md"))
-    shutil.move(market_summary_path, os.path.join(obsidian_dest_folder, "market_summary.md"))
-    logging.info(f"Moved summary files to Obsidian vault: {obsidian_dest_folder}")
-
 def run_casablanca(video_url, force=False):
     configure_logging()
     logging.info("Application started.")
@@ -67,7 +29,6 @@ def run_casablanca(video_url, force=False):
     output_dir = os.path.join("outputs", video_id)
     os.makedirs(output_dir, exist_ok=True)
 
-    transcript_path = os.path.join(output_dir, "transcript.txt")
     expert_summary_path = os.path.join(output_dir, "expert_summary.md")
     market_summary_path = os.path.join(output_dir, "market_summary.md")
 
@@ -75,27 +36,24 @@ def run_casablanca(video_url, force=False):
     if not video_metadata:
         logging.error("Failed to get video metadata. Exiting.")
         logging.info("Application finished.")
-        return 1 # Indicate error and exit
+        return 1
 
     video_title = video_metadata["title"]
     video_description = video_metadata["description"]
     video_date = datetime.strptime(video_metadata["publishedAt"], "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d")
 
-    # Check if the final directory already exists in Obsidian
-    if not force:
-        obsidian_path = os.getenv("OBSIDIAN_VAULT_PATH")
-        if obsidian_path:
-            sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-            date_folder = video_date
-            obsidian_dest_folder = os.path.expanduser(os.path.join(obsidian_path, date_folder, sanitized_title))
-            if os.path.exists(obsidian_dest_folder):
-                logging.info(f"Obsidian folder for {video_id} already exists. Skipping.")
-                logging.info("Application finished.")
-                return 0 # Indicate success and exit
+    if not force and OBSIDIAN_VAULT_PATH:
+        sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        date_folder = video_date
+        obsidian_dest_folder = os.path.expanduser(os.path.join(OBSIDIAN_VAULT_PATH, date_folder, sanitized_title))
+        if os.path.exists(obsidian_dest_folder):
+            logging.info(f"Obsidian folder for {video_id} already exists. Skipping.")
+            logging.info("Application finished.")
+            return 0
 
     logging.info(f"Processing video URL: {video_url}")
     logging.info(f"Video Title: {video_title}")
-    logging.info(f"Video Description: {video_description[:100]}...") # Log first 100 chars of description
+    logging.info(f"Video Description: {video_description[:100]}...")
 
     categories = ["Finance", "Technology", "Education", "Entertainment", "News", "Sports", "Other"]
     video_category = get_video_category(video_title, video_description, categories)
@@ -131,16 +89,15 @@ def run_casablanca(video_url, force=False):
                 f.write(market_summary)
             logging.info(f"Market summary saved to {market_summary_path}")
 
-            move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path)
+            move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path, OBSIDIAN_VAULT_PATH)
 
         else:
             logging.error("Failed to fetch transcript. Exiting summarization process.")
-            return 1 # Indicate error
+            return 1
     else:
         logging.info(f"Video is not finance-related ({video_category}). Skipping transcript fetching and summarization.")
     logging.info("Application finished.")
-    return 0 # Indicate success
-
+    return 0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process YouTube videos and summarize their content.')
