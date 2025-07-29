@@ -31,17 +31,20 @@ A YouTube transcript reader and summarizer.
 
 ## API Key Setup
 
-This project uses the Gemini API for summarization. You need to set up your API key:
+This project uses the Gemini API for summarization and YouTube Data API for video metadata and transcripts. You need to set up your API keys and optionally, your Obsidian vault path:
 
 1.  Obtain a Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-2.  Create a file named `.env` in the root directory of the project.
-3.  Add your API key to the `.env` file in the following format:
+2.  Obtain a YouTube Data API key from [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+3.  Create a file named `.env` in the root directory of the project.
+4.  Add your API keys and Obsidian vault path (if you use Obsidian) to the `.env` file in the following format:
 
     ```
-    GEMINI_API_KEY=YOUR_API_KEY_HERE
+    GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
+    YOUTUBE_API_KEY=YOUR_YOUTUBE_API_KEY_HERE
+    OBSIDIAN_VAULT_PATH=/path/to/your/obsidian/vault
     ```
 
-    Replace `YOUR_API_KEY_HERE` with your actual Gemini API key.
+    Replace `YOUR_GEMINI_API_KEY_HERE` and `YOUR_YOUTUBE_API_KEY_HERE` with your actual API keys. The `OBSIDIAN_VAULT_PATH` is optional; if not set, the summaries will not be moved to an Obsidian vault.
 
 ## Usage
 
