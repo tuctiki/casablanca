@@ -71,24 +71,6 @@ def run_casablanca(video_url, force=False):
     expert_summary_path = os.path.join(output_dir, "expert_summary.md")
     market_summary_path = os.path.join(output_dir, "market_summary.md")
 
-    # Check if the final directory already exists in Obsidian
-    if not force:
-        obsidian_path = os.getenv("OBSIDIAN_VAULT_PATH")
-        if obsidian_path:
-            video_metadata = get_video_metadata(video_url)
-            if video_metadata:
-                video_title = video_metadata["title"]
-                video_date = datetime.now().strftime("%Y-%m-%d")
-                sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                date_folder = video_date
-                obsidian_dest_folder = os.path.expanduser(os.path.join(obsidian_path, date_folder, sanitized_title))
-                if os.path.exists(obsidian_dest_folder):
-                    logging.info(f"Obsidian folder for {video_id} already exists. Skipping.")
-                    logging.info("Application finished.")
-                    return 0 # Indicate success and exit
-
-    logging.info(f"Processing video URL: {video_url}")
-    
     video_metadata = get_video_metadata(video_url)
     if not video_metadata:
         logging.error("Failed to get video metadata. Exiting.")
@@ -97,7 +79,21 @@ def run_casablanca(video_url, force=False):
 
     video_title = video_metadata["title"]
     video_description = video_metadata["description"]
-    video_date = datetime.now().strftime("%Y-%m-%d")
+    video_date = datetime.strptime(video_metadata["publishedAt"], "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d")
+
+    # Check if the final directory already exists in Obsidian
+    if not force:
+        obsidian_path = os.getenv("OBSIDIAN_VAULT_PATH")
+        if obsidian_path:
+            sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            date_folder = video_date
+            obsidian_dest_folder = os.path.expanduser(os.path.join(obsidian_path, date_folder, sanitized_title))
+            if os.path.exists(obsidian_dest_folder):
+                logging.info(f"Obsidian folder for {video_id} already exists. Skipping.")
+                logging.info("Application finished.")
+                return 0 # Indicate success and exit
+
+    logging.info(f"Processing video URL: {video_url}")
     logging.info(f"Video Title: {video_title}")
     logging.info(f"Video Description: {video_description[:100]}...") # Log first 100 chars of description
 
@@ -144,6 +140,7 @@ def run_casablanca(video_url, force=False):
         logging.info(f"Video is not finance-related ({video_category}). Skipping transcript fetching and summarization.")
     logging.info("Application finished.")
     return 0 # Indicate success
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process YouTube videos and summarize their content.')

@@ -23,7 +23,8 @@ def get_video_metadata(video_url):
             snippet = response["items"][0]["snippet"]
             return {
                 "title": snippet["title"],
-                "description": snippet["description"]
+                "description": snippet["description"],
+                "publishedAt": snippet["publishedAt"]
             }
         else:
             logging.error(f"No video found for ID: {video_id}")
