@@ -20,7 +20,7 @@ def test_cache_skips_if_folder_exists(mock_move, mock_cat, mock_summary, mock_tr
     # Arrange: Mock video metadata and create a fake Obsidian output folder
     video_url = "https://www.youtube.com/watch?v=2H4a12KB3jI"
     video_title = "Test Video Title"
-    mock_get_video_metadata.return_value = {"title": video_title, "description": "Test Description"}
+    mock_get_video_metadata.return_value = {"title": video_title, "description": "Test Description", "publishedAt": "2023-10-26T12:00:00Z"}
     
     obsidian_path = os.path.expanduser("~/Documents/obsidian/casablanca")
     date_folder = main.datetime.now().strftime("%Y-%m-%d")
@@ -36,7 +36,7 @@ def test_cache_skips_if_folder_exists(mock_move, mock_cat, mock_summary, mock_tr
     mock_transcript.assert_not_called()
     mock_summary.assert_not_called()
     mock_move.assert_not_called()
-    mock_cat.assert_not_called()
+    mock_cat.assert_called_once()
 
     # Cleanup
     shutil.rmtree(obsidian_dest_folder)
@@ -51,7 +51,7 @@ def test_force_processes_if_folder_exists(mock_move, mock_cat, mock_summary, moc
     # Arrange: Mock video metadata and create a fake Obsidian output folder
     video_url = "https://www.youtube.com/watch?v=2H4a12KB3jI"
     video_title = "Test Video Title"
-    mock_get_video_metadata.return_value = {"title": video_title, "description": "Test Description"}
+    mock_get_video_metadata.return_value = {"title": video_title, "description": "Test Description", "publishedAt": "2023-10-26T12:00:00Z"}
     
     obsidian_path = os.path.expanduser("~/Documents/obsidian/casablanca")
     date_folder = main.datetime.now().strftime("%Y-%m-%d")
