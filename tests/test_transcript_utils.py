@@ -7,11 +7,7 @@ from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled
 def test_get_transcript_success(mock_youtube_transcript_api):
     # Mock the fetch method to return a sample transcript
     mock_instance = mock_youtube_transcript_api.return_value
-    mock_snippet1 = MagicMock()
-    mock_snippet1.text = 'Hello'
-    mock_snippet2 = MagicMock()
-    mock_snippet2.text = 'World'
-    mock_instance.fetch.return_value = [mock_snippet1, mock_snippet2]
+    mock_instance.fetch.return_value = [{'text': 'Hello'}, {'text': 'World'}]
 
     video_url = "https://www.youtube.com/watch?v=test_video_id"
     transcript = get_transcript(video_url)

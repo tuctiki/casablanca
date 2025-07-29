@@ -11,15 +11,33 @@ from casablanca.llm_utils import summarize_content, get_video_category
 # Load environment variables from .env file
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('casablanca.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+import sys
+import os
+import logging
+import shutil
+import argparse
+from datetime import datetime
+from dotenv import load_dotenv
+from casablanca.transcript_utils import get_transcript, get_video_metadata
+from casablanca.llm_utils import summarize_content, get_video_category
+
+# Load environment variables from .env file
+load_dotenv()
+
+def configure_logging():
+    if not logging.root.handlers:
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler('casablanca.log'),
+                logging.StreamHandler(sys.stdout)
+            ]
+        )
+
+def clear_log_handlers():
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
 
 def move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path):
     """Moves the generated markdown files to the Obsidian vault."""
@@ -42,14 +60,9 @@ def move_to_obsidian(video_title, video_date, expert_summary_path, market_summar
     shutil.move(market_summary_path, os.path.join(obsidian_dest_folder, "market_summary.md"))
     logging.info(f"Moved summary files to Obsidian vault: {obsidian_dest_folder}")
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process YouTube videos and summarize their content.')
-    parser.add_argument('video_url', type=str, help='The URL of the YouTube video to process.')
-    parser.add_argument('--force', action='store_true', help='Force reprocessing of the video even if it has been processed before.')
-    args = parser.parse_args()
-
+def run_casablanca(video_url, force=False):
+    configure_logging()
     logging.info("Application started.")
-    video_url = args.video_url
     video_id = video_url.split("=")[-1]
     output_dir = os.path.join("outputs", video_id)
     os.makedirs(output_dir, exist_ok=True)
@@ -59,7 +72,7 @@ if __name__ == "__main__":
     market_summary_path = os.path.join(output_dir, "market_summary.md")
 
     # Check if the final directory already exists in Obsidian
-    if not args.force:
+    if not force:
         obsidian_path = os.getenv("OBSIDIAN_VAULT_PATH")
         if obsidian_path:
             video_metadata = get_video_metadata(video_url)
@@ -72,7 +85,7 @@ if __name__ == "__main__":
                 if os.path.exists(obsidian_dest_folder):
                     logging.info(f"Obsidian folder for {video_id} already exists. Skipping.")
                     logging.info("Application finished.")
-                    sys.exit(0)
+                    return 0 # Indicate success and exit
 
     logging.info(f"Processing video URL: {video_url}")
     
@@ -80,7 +93,7 @@ if __name__ == "__main__":
     if not video_metadata:
         logging.error("Failed to get video metadata. Exiting.")
         logging.info("Application finished.")
-        sys.exit(1)
+        return 1 # Indicate error and exit
 
     video_title = video_metadata["title"]
     video_description = video_metadata["description"]
@@ -126,6 +139,16 @@ if __name__ == "__main__":
 
         else:
             logging.error("Failed to fetch transcript. Exiting summarization process.")
+            return 1 # Indicate error
     else:
         logging.info(f"Video is not finance-related ({video_category}). Skipping transcript fetching and summarization.")
     logging.info("Application finished.")
+    return 0 # Indicate success
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Process YouTube videos and summarize their content.')
+    parser.add_argument('video_url', type=str, help='The URL of the YouTube video to process.')
+    parser.add_argument('--force', action='store_true', help='Force reprocessing of the video even if it has been processed before.')
+    args = parser.parse_args()
+
+    sys.exit(run_casablanca(args.video_url, args.force))

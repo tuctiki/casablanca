@@ -38,7 +38,7 @@ def get_transcript(video_url):
         logging.info(f"Attempting to fetch transcript for video ID: {video_id}")
         api = YouTubeTranscriptApi()
         transcript_snippets = api.fetch(video_id)
-        transcript = " ".join([snippet.text for snippet in transcript_snippets])
+        transcript = "\n".join([snippet.text for snippet in transcript_snippets])
         return transcript
     except Exception as e:
         logging.error(f"Failed to get transcript for {video_url}: {e}")
