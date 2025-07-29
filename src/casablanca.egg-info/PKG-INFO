@@ -2,5 +2,9 @@ Metadata-Version: 2.4
 Name: casablanca
 Version: 0.1.0
 Summary: A YouTube transcript reader and summarizer
+License-File: LICENSE
 Requires-Dist: youtube-transcript-api
 Requires-Dist: google-generativeai
+Requires-Dist: google-api-python-client
+Requires-Dist: python-dotenv
+Dynamic: license-file

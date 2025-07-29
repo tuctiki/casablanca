@@ -6,6 +6,7 @@ dependencies = [
     "youtube-transcript-api",
     "google-generativeai",
     "google-api-python-client",
+    "python-dotenv",
 ]
 
 [build-system]
