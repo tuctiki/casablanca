@@ -6,12 +6,16 @@ from click.testing import CliRunner
 from casablanca.main import cli
 from datetime import datetime
 from casablanca.config import OBSIDIAN_VAULT_PATH
+import logging
 
 # Helper function to run the main script with arguments
 def run_main(args):
     runner = CliRunner()
     result = runner.invoke(cli, args)
-    return result.exit_code
+    # Ensure logs are flushed before returning
+    for handler in logging.root.handlers:
+        handler.flush()
+    return result.exit_code, result.stdout
 
 @patch('casablanca.main.configure_logging')
 @patch('casablanca.main.get_video_metadata')
@@ -19,7 +23,7 @@ def run_main(args):
 @patch('casablanca.main.summarize_content')
 @patch('casablanca.main.get_video_category')
 @patch('casablanca.main.move_to_obsidian')
-def test_cache_skips_if_folder_exists(mock_move, mock_cat, mock_summary, mock_transcript, mock_get_video_metadata, mock_configure_logging, caplog):
+def test_cache_skips_if_folder_exists(mock_move, mock_cat, mock_summary, mock_transcript, mock_get_video_metadata, mock_configure_logging):
     # Arrange: Mock video metadata and create a fake Obsidian output folder
     video_url = "https://www.youtube.com/watch?v=2H4a12KB3jI"
     video_title = "Test Video Title"
@@ -33,7 +37,7 @@ def test_cache_skips_if_folder_exists(mock_move, mock_cat, mock_summary, mock_tr
         os.makedirs(obsidian_dest_folder, exist_ok=True)
 
     # Act: Run the main script
-    exit_code = run_main([video_url])
+    exit_code, stdout = run_main([video_url])
 
     # Assert: Check that the script logged a skipping message and exited
     assert exit_code == 0
@@ -52,7 +56,7 @@ def test_cache_skips_if_folder_exists(mock_move, mock_cat, mock_summary, mock_tr
 @patch('casablanca.main.summarize_content', return_value="This is a test summary.")
 @patch('casablanca.main.get_video_category', return_value="Finance")
 @patch('casablanca.main.move_to_obsidian', return_value=None)
-def test_force_processes_if_folder_exists(mock_move, mock_cat, mock_summary, mock_transcript, mock_get_video_metadata, mock_configure_logging, caplog):
+def test_force_processes_if_folder_exists(mock_move, mock_cat, mock_summary, mock_transcript, mock_get_video_metadata, mock_configure_logging):
     # Arrange: Mock video metadata and create a fake Obsidian output folder
     video_url = "https://www.youtube.com/watch?v=2H4a12KB3jI"
     video_title = "Test Video Title"
@@ -66,7 +70,7 @@ def test_force_processes_if_folder_exists(mock_move, mock_cat, mock_summary, moc
         os.makedirs(obsidian_dest_folder, exist_ok=True)
 
     # Act: Run the main script with the --force flag
-    exit_code = run_main([video_url, "--force"])
+    exit_code, stdout = run_main([video_url, "--force"])
 
     # Assert: Check that the script did NOT log a skipping message
     assert exit_code == 0
