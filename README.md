@@ -17,16 +17,20 @@ A YouTube transcript reader and summarizer.
     cd casablanca
     ```
 
-2.  **Install dependencies:**
+2.  **Install Poetry:**
+
+    Follow the instructions on the [Poetry website](https://python-poetry.org/docs/#installation) to install Poetry.
+
+3.  **Install dependencies:**
 
     ```bash
-    pip install -r requirements.txt
+    poetry install
     ```
 
-3.  **Install the package locally (optional, for development):**
+4.  **Activate the virtual environment:**
 
     ```bash
-    pip install .
+    poetry shell
     ```
 
 ## API Key Setup
