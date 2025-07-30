@@ -82,7 +82,21 @@ outputs/
 
 ## Running Tests
 
-To run the unit tests for the project, make sure you have `pytest` installed (`pip install pytest`) and then run:
+To run the unit tests for the project, you can use `tox`. This will create isolated environments and run tests against them.
+
+1.  **Install tox:**
+
+    ```bash
+    pip install tox
+    ```
+
+2.  **Run tests:**
+
+    ```bash
+    tox
+    ```
+
+Alternatively, you can run `pytest` directly:
 
 ```bash
 pytest
