@@ -6,7 +6,7 @@ import click
 from .transcript_utils import get_transcript, get_video_metadata
 from .llm_utils import summarize_content, get_video_category
 from .file_utils import move_to_obsidian
-from .config import OBSIDIAN_VAULT_PATH, DEFAULT_EXPERT_PROMPT, DEFAULT_MARKET_PROMPT
+from .config import OBSIDIAN_VAULT_PATH, DEFAULT_EXPERT_PROMPT, DEFAULT_MARKET_PROMPT, DEFAULT_CATEGORIES
 
 def configure_logging():
     # Clear existing handlers to prevent duplicate logs in tests
@@ -27,7 +27,8 @@ def configure_logging():
 @click.option('--force', is_flag=True, help='Force reprocessing of the video even if it has been processed before.')
 @click.option('--expert-prompt', default=DEFAULT_EXPERT_PROMPT, help='Custom prompt for expert opinions summary.')
 @click.option('--market-prompt', default=DEFAULT_MARKET_PROMPT, help='Custom prompt for market direction summary.')
-def cli(video_url, force, expert_prompt, market_prompt):
+@click.option('--categories', default=','.join(DEFAULT_CATEGORIES), help='Comma-separated list of categories for video classification.')
+def cli(video_url, force, expert_prompt, market_prompt, categories):
     configure_logging()
     logging.info("Application started.")
     video_id = video_url.split("=")[-1]
@@ -60,8 +61,8 @@ def cli(video_url, force, expert_prompt, market_prompt):
     logging.info(f"Video Title: {video_title}")
     logging.info(f"Video Description: {video_description[:100]}...")
 
-    categories = ["Finance", "Technology", "Education", "Entertainment", "News", "Sports", "Other"]
-    video_category = get_video_category(video_title, video_description, categories)
+    categories_list = [c.strip() for c in categories.split(',')]
+    video_category = get_video_category(video_title, video_description, categories_list)
     logging.info(f"Video Category: {video_category}")
 
     if video_category in ["Finance", "News"]:

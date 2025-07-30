@@ -20,3 +20,5 @@ Based on the provided transcript, make a detailed breakdown on the experts\' opi
 DEFAULT_MARKET_PROMPT = '''
 Based on the provided transcript and the experts\' opinions, summarize the direction of the market and suggestions on operation.
 '''
+
+DEFAULT_CATEGORIES = ["Finance", "Technology", "Education", "Entertainment", "News", "Sports", "Other"]

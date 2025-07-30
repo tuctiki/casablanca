@@ -51,13 +51,13 @@ This project uses the Gemini API for summarization and YouTube Data API for vide
 To run the application and summarize a YouTube video transcript:
 
 ```bash
-python -m casablanca.main <youtube_video_url> [--force] [--expert-prompt <"custom prompt">] [--market-prompt <"custom prompt">]
+python -m casablanca.main <youtube_video_url> [--force] [--expert-prompt <"custom prompt">] [--market-prompt <"custom prompt">] [--categories <"cat1,cat2,cat3">]
 ```
 
 Example:
 
 ```bash
-python -m casablanca.main https://www.youtube.com/watch?v=erI6k_hnToE --force --expert-prompt "Summarize expert opinions concisely."
+python -m casablanca.main https://www.youtube.com/watch?v=erI6k_hnToE --force --expert-prompt "Summarize expert opinions concisely." --categories "Tech,Finance"
 ```
 
 To see all available options, run:

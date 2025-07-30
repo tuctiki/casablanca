@@ -82,3 +82,22 @@ def test_force_processes_if_folder_exists(mock_move, mock_cat, mock_summary, moc
     # Cleanup
     if OBSIDIAN_VAULT_PATH and os.path.exists(obsidian_dest_folder):
         shutil.rmtree(obsidian_dest_folder)
+
+@patch('casablanca.main.configure_logging')
+@patch('casablanca.main.get_video_metadata')
+@patch('casablanca.main.get_transcript')
+@patch('casablanca.main.summarize_content')
+@patch('casablanca.main.get_video_category')
+@patch('casablanca.main.move_to_obsidian')
+def test_custom_categories_option(mock_move, mock_cat, mock_summary, mock_transcript, mock_get_video_metadata, mock_configure_logging):
+    video_url = "https://www.youtube.com/watch?v=test_video_id"
+    video_title = "Test Video Title"
+    video_description = "Test Description"
+    mock_get_video_metadata.return_value = {"title": video_title, "description": video_description, "publishedAt": "2023-10-26T12:00:00Z"}
+    mock_cat.return_value = "CustomCategory"
+
+    custom_categories = "CustomCategory1,CustomCategory2"
+    exit_code, stdout = run_main([video_url, "--categories", custom_categories])
+
+    assert exit_code == 0
+    mock_cat.assert_called_once_with(video_title, video_description, ["CustomCategory1", "CustomCategory2"])
