@@ -7,6 +7,7 @@ dependencies = [
     "google-generativeai",
     "google-api-python-client",
     "python-dotenv",
+    "click",
 ]
 
 [build-system]

@@ -1,12 +1,12 @@
 import sys
 import os
 import logging
-import argparse
 from datetime import datetime
+import click
 from .transcript_utils import get_transcript, get_video_metadata
 from .llm_utils import summarize_content, get_video_category
 from .file_utils import move_to_obsidian
-from .config import OBSIDIAN_VAULT_PATH
+from .config import OBSIDIAN_VAULT_PATH, DEFAULT_EXPERT_PROMPT, DEFAULT_MARKET_PROMPT
 
 def configure_logging():
     # Clear existing handlers to prevent duplicate logs in tests
@@ -22,7 +22,12 @@ def configure_logging():
             ]
         )
 
-def run_casablanca(video_url, force=False):
+@click.command()
+@click.argument('video_url', type=str)
+@click.option('--force', is_flag=True, help='Force reprocessing of the video even if it has been processed before.')
+@click.option('--expert-prompt', default=DEFAULT_EXPERT_PROMPT, help='Custom prompt for expert opinions summary.')
+@click.option('--market-prompt', default=DEFAULT_MARKET_PROMPT, help='Custom prompt for market direction summary.')
+def cli(video_url, force, expert_prompt, market_prompt):
     configure_logging()
     logging.info("Application started.")
     video_id = video_url.split("=")[-1]
@@ -36,7 +41,7 @@ def run_casablanca(video_url, force=False):
     if not video_metadata:
         logging.error("Failed to get video metadata. Exiting.")
         logging.info("Application finished.")
-        return 1
+        sys.exit(1)
 
     video_title = video_metadata["title"]
     video_description = video_metadata["description"]
@@ -49,7 +54,7 @@ def run_casablanca(video_url, force=False):
         if os.path.exists(obsidian_dest_folder):
             logging.info(f"Obsidian folder for {video_id} already exists. Skipping.")
             logging.info("Application finished.")
-            return 0
+            sys.exit(0)
 
     logging.info(f"Processing video URL: {video_url}")
     logging.info(f"Video Title: {video_title}")
@@ -69,22 +74,14 @@ def run_casablanca(video_url, force=False):
                 f.write(transcript)
             logging.info(f"Transcript saved to {transcript_path}")
 
-            expert_opinions_prompt = '''
-            Based on the provided transcript, make a detailed breakdown on the experts\' opinions with their name and position.
-            '''
-
-            market_direction_prompt = '''
-            Based on the provided transcript and the experts\' opinions, summarize the direction of the market and suggestions on operation.
-            '''
-
             logging.info("Summarizing expert opinions...")
-            expert_summary = summarize_content(transcript, expert_opinions_prompt)
+            expert_summary = summarize_content(transcript, expert_prompt)
             with open(expert_summary_path, "w") as f:
                 f.write(expert_summary)
             logging.info(f"Expert summary saved to {expert_summary_path}")
 
             logging.info("Summarizing market direction and operation suggestions...")
-            market_summary = summarize_content(transcript, market_direction_prompt)
+            market_summary = summarize_content(transcript, market_prompt)
             with open(market_summary_path, "w") as f:
                 f.write(market_summary)
             logging.info(f"Market summary saved to {market_summary_path}")
@@ -93,16 +90,11 @@ def run_casablanca(video_url, force=False):
 
         else:
             logging.error("Failed to fetch transcript. Exiting summarization process.")
-            return 1
+            sys.exit(1)
     else:
         logging.info(f"Video is not finance-related ({video_category}). Skipping transcript fetching and summarization.")
     logging.info("Application finished.")
-    return 0
+    sys.exit(0)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Process YouTube videos and summarize their content.')
-    parser.add_argument('video_url', type=str, help='The URL of the YouTube video to process.')
-    parser.add_argument('--force', action='store_true', help='Force reprocessing of the video even if it has been processed before.')
-    args = parser.parse_args()
-
-    sys.exit(run_casablanca(args.video_url, args.force))
+    cli()
