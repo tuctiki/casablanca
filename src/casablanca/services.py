@@ -14,6 +14,9 @@ class YouTubeService:
     def get_video_metadata(self, video_url):
         try:
             video_id = extract_video_id(video_url)
+            if not video_id:
+                logging.error(f"Invalid video URL: {video_url}")
+                return None
             request = self.youtube.videos().list(part="snippet", id=video_id)
             response = request.execute()
             if response["items"]:
