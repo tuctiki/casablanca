@@ -40,11 +40,7 @@ class VideoProcessor:
         self.obsidian_vault_path = obsidian_vault_path
         self.default_categories = default_categories
 
-    def process(self, video_url, force, expert_prompt, market_prompt, categories):
-        video_id = video_url.split("=")[-1]
-        output_dir, expert_summary_path, market_summary_path = generate_output_paths(video_id)
-        os.makedirs(output_dir, exist_ok=True)
-
+    def _get_video_info(self, video_url):
         video_metadata = self.youtube_service.get_video_metadata(video_url)
         if not video_metadata:
             raise VideoMetadataError("Failed to get video metadata.")
@@ -54,53 +50,73 @@ class VideoProcessor:
         video_title = video_metadata["title"]
         video_description = video_metadata["description"]
         video_date = datetime.strptime(video_metadata["publishedAt"], "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d")
+        return video_title, video_description, video_date
 
+    def _check_existing_output(self, video_id, video_title, video_date, force):
         if not force and self.obsidian_vault_path:
             sanitized_title = sanitize_title(video_title)
             date_folder = video_date
             obsidian_dest_folder = os.path.expanduser(os.path.join(self.obsidian_vault_path, date_folder, sanitized_title))
             if os.path.exists(obsidian_dest_folder):
                 logging.info(f"Obsidian folder for {video_id} already exists. Skipping.")
-                return
+                return True
+        return False
+
+    def _classify_video(self, video_title, video_description, categories):
+        categories_list = [c.strip() for c in categories.split(',')]
+        logging.debug(f"Using categories: {categories_list}")
+        video_category = self.gemini_service.get_video_category(video_title, video_description, categories_list)
+        logging.info(f"Video Category: {video_category}")
+        return video_category
+
+    def _process_finance_video(self, video_url, output_dir, expert_summary_path, market_summary_path, expert_prompt, market_prompt, video_title, video_date):
+        logging.info("Video is finance-related. Proceeding with transcript fetching and summarization.")
+        transcript = self.youtube_service.get_transcript(video_url)
+
+        if not transcript:
+            raise TranscriptError("Failed to fetch transcript. Exiting summarization process.")
+
+        transcript_path = os.path.join(output_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write(transcript)
+        logging.info(f"Transcript saved to {transcript_path}")
+        logging.debug(f"Transcript content (first 100 chars): {transcript[:100]}...")
+
+        logging.info("Summarizing expert opinions...")
+        expert_summary = self.gemini_service.summarize_content(transcript, expert_prompt)
+        with open(expert_summary_path, "w") as f:
+            f.write(expert_summary)
+        logging.info(f"Expert summary saved to {expert_summary_path}")
+        logging.debug(f"Expert summary content (first 100 chars): {expert_summary[:100]}...")
+
+        logging.info("Summarizing market direction and operation suggestions...")
+        market_summary = self.gemini_service.summarize_content(transcript, market_prompt)
+        with open(market_summary_path, "w") as f:
+            f.write(market_summary)
+        logging.info(f"Market summary saved to {market_summary_path}")
+        logging.debug(f"Market summary content (first 100 chars): {market_summary[:100]}...")
+
+        move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path, self.obsidian_vault_path)
+
+    def process(self, video_url, force, expert_prompt, market_prompt, categories):
+        from .url_utils import extract_video_id
+        video_id = extract_video_id(video_url)
+        output_dir, expert_summary_path, market_summary_path = generate_output_paths(video_id)
+        os.makedirs(output_dir, exist_ok=True)
+
+        video_title, video_description, video_date = self._get_video_info(video_url)
+
+        if self._check_existing_output(video_id, video_title, video_date, force):
+            return
 
         logging.info(f"Processing video URL: {video_url}")
         logging.info(f"Video Title: {video_title}")
         logging.info(f"Video Description: {video_description[:100]}...")
 
-        categories_list = [c.strip() for c in categories.split(',')]
-        logging.debug(f"Using categories: {categories_list}")
-        video_category = self.gemini_service.get_video_category(video_title, video_description, categories_list)
-        logging.info(f"Video Category: {video_category}")
+        video_category = self._classify_video(video_title, video_description, categories)
 
         if video_category in ["Finance", "News"]:
-            logging.info("Video is finance-related. Proceeding with transcript fetching and summarization.")
-            transcript = self.youtube_service.get_transcript(video_url)
-
-            if not transcript:
-                raise TranscriptError("Failed to fetch transcript. Exiting summarization process.")
-
-            transcript_path = os.path.join(output_dir, "transcript.txt")
-            with open(transcript_path, "w") as f:
-                f.write(transcript)
-            logging.info(f"Transcript saved to {transcript_path}")
-            logging.debug(f"Transcript content (first 100 chars): {transcript[:100]}...")
-
-            logging.info("Summarizing expert opinions...")
-            expert_summary = self.gemini_service.summarize_content(transcript, expert_prompt)
-            with open(expert_summary_path, "w") as f:
-                f.write(expert_summary)
-            logging.info(f"Expert summary saved to {expert_summary_path}")
-            logging.debug(f"Expert summary content (first 100 chars): {expert_summary[:100]}...")
-
-            logging.info("Summarizing market direction and operation suggestions...")
-            market_summary = self.gemini_service.summarize_content(transcript, market_prompt)
-            with open(market_summary_path, "w") as f:
-                f.write(market_summary)
-            logging.info(f"Market summary saved to {market_summary_path}")
-            logging.debug(f"Market summary content (first 100 chars): {market_summary[:100]}...")
-
-            move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path, self.obsidian_vault_path)
-
+            self._process_finance_video(video_url, output_dir, expert_summary_path, market_summary_path, expert_prompt, market_prompt, video_title, video_date)
         else:
             logging.info(f"Video is not finance-related ({video_category}). Skipping transcript fetching and summarization.")
 

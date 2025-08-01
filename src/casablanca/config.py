@@ -22,3 +22,4 @@ Based on the provided transcript and the experts\' opinions, summarize the direc
 '''
 
 DEFAULT_CATEGORIES = ["Finance", "Technology", "Education", "Entertainment", "News", "Sports", "Other"]
+DEFAULT_TRANSCRIPT_LANGUAGE = os.getenv("DEFAULT_TRANSCRIPT_LANGUAGE", "en")

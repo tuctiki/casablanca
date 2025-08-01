@@ -1,7 +1,11 @@
 import logging
 import google.generativeai as genai
 from googleapiclient.discovery import build
-from youtube_transcript_api import YouTubeTranscriptApi
+from googleapiclient.errors import HttpError
+from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+
+from .config import DEFAULT_TRANSCRIPT_LANGUAGE
+from .url_utils import extract_video_id
 
 class YouTubeService:
     def __init__(self, api_key):
@@ -9,7 +13,7 @@ class YouTubeService:
 
     def get_video_metadata(self, video_url):
         try:
-            video_id = video_url.split("v=")[1].split("&")[0]
+            video_id = extract_video_id(video_url)
             request = self.youtube.videos().list(part="snippet", id=video_id)
             response = request.execute()
             if response["items"]:
@@ -22,21 +26,27 @@ class YouTubeService:
             else:
                 logging.error(f"No video found for ID: {video_id}")
                 return None
+        except HttpError as e:
+            logging.error(f"HTTP error fetching video metadata for {video_url}: {e}")
+            return None
         except Exception as e:
-            logging.error(f"Failed to get video metadata for {video_url}: {e}")
+            logging.error(f"An unexpected error occurred while fetching video metadata for {video_url}: {e}")
             return None
 
     def get_transcript(self, video_url):
         try:
-            video_id = video_url.split("v=")[1].split("&")[0]
+            video_id = extract_video_id(video_url)
             logging.info(f"Attempting to fetch transcript for video ID: {video_id}")
             transcript_list = YouTubeTranscriptApi().list(video_id)
-            transcript = transcript_list.find_transcript(['en'])
+            transcript = transcript_list.find_transcript([DEFAULT_TRANSCRIPT_LANGUAGE])
             transcript_data = transcript.fetch()
             transcript_text = "\n".join([item.text for item in transcript_data.snippets])
             return transcript_text
+        except (NoTranscriptFound, TranscriptsDisabled) as e:
+            logging.error(f"Transcript not available for {video_url}: {e}")
+            return None
         except Exception as e:
-            logging.error(f"Failed to get transcript for {video_url}: {e}")
+            logging.error(f"An unexpected error occurred while fetching transcript for {video_url}: {e}")
             return None
 
 class GeminiService:
@@ -59,8 +69,14 @@ class GeminiService:
             response = self.model.generate_content(prompt)
             logging.info("Received response from Gemini API for video categorization.")
             return response.text.strip()
+        except genai.types.BlockedPromptException as e:
+            logging.error(f"Gemini API video categorization failed due to blocked prompt: {e}")
+            return "Error"
+        except genai.types.StopCandidateException as e:
+            logging.error(f"Gemini API video categorization failed due to stop candidate: {e}")
+            return "Error"
         except Exception as e:
-            logging.error(f"Gemini API video categorization failed: {e}")
+            logging.error(f"An unexpected error occurred during Gemini API video categorization: {e}")
             return "Error"
 
     def summarize_content(self, text, prompt):

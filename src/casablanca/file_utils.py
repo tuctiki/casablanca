@@ -2,8 +2,14 @@ import os
 import shutil
 import logging
 
+import re
+
 def sanitize_title(title):
-    return "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    # Remove characters that are not alphanumeric, spaces, hyphens, or underscores
+    sanitized = re.sub(r'[^a-zA-Z0-9\s\-_]', '', title)
+    # Replace multiple spaces with a single space and strip leading/trailing spaces
+    sanitized = re.sub(r'\s+', ' ', sanitized).strip()
+    return sanitized
 
 def generate_output_paths(video_id):
     output_dir = os.path.join("outputs", video_id)
