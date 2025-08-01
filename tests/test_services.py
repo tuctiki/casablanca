@@ -71,21 +71,29 @@ def test_youtube_service_get_video_metadata_invalid_url(youtube_service):
 @patch('casablanca.services.YouTubeTranscriptApi')
 def test_youtube_service_get_transcript_success(mock_youtube_transcript_api, youtube_service):
     service, _, _ = youtube_service
-    mock_instance = mock_youtube_transcript_api.return_value
+    mock_transcript_list = MagicMock()
+    mock_transcript = MagicMock()
+    mock_youtube_transcript_api.return_value.list.return_value = mock_transcript_list
+    mock_transcript_list.find_transcript.return_value = mock_transcript
+    
     class MockSnippet:
         def __init__(self, text):
             self.text = text
-    mock_instance.fetch.return_value = [MockSnippet('Hello'), MockSnippet('World')]
+    mock_transcript_data = MagicMock()
+    mock_transcript_data.snippets = [MockSnippet('Hello'), MockSnippet('World')]
+    mock_transcript.fetch.return_value = mock_transcript_data
+    
     video_url = "https://www.youtube.com/watch?v=test_video_id"
     transcript = service.get_transcript(video_url)
     assert transcript == "Hello\nWorld"
-    mock_instance.fetch.assert_called_once_with("test_video_id")
+    mock_youtube_transcript_api.return_value.list.assert_called_once_with("test_video_id")
+    mock_transcript_list.find_transcript.assert_called_once_with(['en'])
+    mock_transcript.fetch.assert_called_once()
 
 @patch('casablanca.services.YouTubeTranscriptApi')
 def test_youtube_service_get_transcript_no_transcript_found(mock_youtube_transcript_api, youtube_service):
     service, _, _ = youtube_service
-    mock_instance = mock_youtube_transcript_api.return_value
-    mock_instance.fetch.side_effect = NoTranscriptFound("test_video_id", ["en"], [])
+    mock_youtube_transcript_api.return_value.list.side_effect = NoTranscriptFound("test_video_id", ["en"], [])
     video_url = "https://www.youtube.com/watch?v=no_transcript_id"
     transcript = service.get_transcript(video_url)
     assert transcript is None
@@ -93,8 +101,7 @@ def test_youtube_service_get_transcript_no_transcript_found(mock_youtube_transcr
 @patch('casablanca.services.YouTubeTranscriptApi')
 def test_youtube_service_get_transcript_transcripts_disabled(mock_youtube_transcript_api, youtube_service):
     service, _, _ = youtube_service
-    mock_instance = mock_youtube_transcript_api.return_value
-    mock_instance.fetch.side_effect = TranscriptsDisabled("test_video_id")
+    mock_youtube_transcript_api.return_value.list.side_effect = TranscriptsDisabled("test_video_id")
     video_url = "https://www.youtube.com/watch?v=disabled_transcript_id"
     transcript = service.get_transcript(video_url)
     assert transcript is None
@@ -102,11 +109,11 @@ def test_youtube_service_get_transcript_transcripts_disabled(mock_youtube_transc
 @patch('casablanca.services.YouTubeTranscriptApi')
 def test_youtube_service_get_transcript_other_exception(mock_youtube_transcript_api, youtube_service):
     service, _, _ = youtube_service
-    mock_instance = mock_youtube_transcript_api.return_value
-    mock_instance.fetch.side_effect = Exception("Some other error")
+    mock_youtube_transcript_api.return_value.list.side_effect = Exception("Some other error")
     video_url = "https://www.youtube.com/watch?v=error_id"
     transcript = service.get_transcript(video_url)
     assert transcript is None
+
 
 def test_youtube_service_get_transcript_invalid_url(youtube_service):
     service, _, _ = youtube_service
