@@ -30,10 +30,11 @@ class YouTubeService:
         try:
             video_id = video_url.split("v=")[1].split("&")[0]
             logging.info(f"Attempting to fetch transcript for video ID: {video_id}")
-            api = YouTubeTranscriptApi()
-            transcript_list = api.fetch(video_id)
-            transcript = "\n".join([item.text for item in transcript_list])
-            return transcript
+            transcript_list = YouTubeTranscriptApi().list(video_id)
+            transcript = transcript_list.find_transcript(['en'])
+            transcript_data = transcript.fetch()
+            transcript_text = "\n".join([item.text for item in transcript_data.snippets])
+            return transcript_text
         except Exception as e:
             logging.error(f"Failed to get transcript for {video_url}: {e}")
             return None
