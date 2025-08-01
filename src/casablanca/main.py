@@ -6,7 +6,7 @@ from datetime import datetime
 import click
 from .transcript_utils import get_transcript, get_video_metadata
 from .llm_utils import summarize_content, get_video_category
-from .file_utils import move_to_obsidian
+from .file_utils import move_to_obsidian, sanitize_title, generate_output_paths
 from .config import OBSIDIAN_VAULT_PATH, DEFAULT_EXPERT_PROMPT, DEFAULT_MARKET_PROMPT, DEFAULT_CATEGORIES
 
 def configure_logging(log_level):
@@ -34,21 +34,20 @@ def configure_logging(log_level):
 @click.option('--market-prompt', default=DEFAULT_MARKET_PROMPT, help='Custom prompt for market direction summary.')
 @click.option('--categories', default=','.join(DEFAULT_CATEGORIES), help='Comma-separated list of categories for video classification.')
 @click.option('--log-level', default='INFO', type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], case_sensitive=False), help='Set the logging level.')
-def cli(video_url, force, expert_prompt, market_prompt, categories, log_level):
-    configure_logging(log_level)
-    logging.info("Application started.")
-    video_id = video_url.split("=")[-1]
-    output_dir = os.path.join("outputs", video_id)
-    os.makedirs(output_dir, exist_ok=True)
+class VideoMetadataError(Exception):
+    pass
 
-    expert_summary_path = os.path.join(output_dir, "expert_summary.md")
-    market_summary_path = os.path.join(output_dir, "market_summary.md")
+class TranscriptError(Exception):
+    pass
+
+def process_video(video_url, force, expert_prompt, market_prompt, categories):
+    video_id = video_url.split("=")[-1]
+    output_dir, expert_summary_path, market_summary_path = generate_output_paths(video_id)
+    os.makedirs(output_dir, exist_ok=True)
 
     video_metadata = get_video_metadata(video_url)
     if not video_metadata:
-        logging.error("Failed to get video metadata. Exiting.")
-        logging.info("Application finished.")
-        sys.exit(1)
+        raise VideoMetadataError("Failed to get video metadata.")
 
     logging.debug(f"Video metadata: {video_metadata}")
 
@@ -57,13 +56,12 @@ def cli(video_url, force, expert_prompt, market_prompt, categories, log_level):
     video_date = datetime.strptime(video_metadata["publishedAt"], "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d")
 
     if not force and OBSIDIAN_VAULT_PATH:
-        sanitized_title = "".join(c for c in video_title if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        sanitized_title = sanitize_title(video_title)
         date_folder = video_date
         obsidian_dest_folder = os.path.expanduser(os.path.join(OBSIDIAN_VAULT_PATH, date_folder, sanitized_title))
         if os.path.exists(obsidian_dest_folder):
             logging.info(f"Obsidian folder for {video_id} already exists. Skipping.")
-            logging.info("Application finished.")
-            sys.exit(0)
+            return
 
     logging.info(f"Processing video URL: {video_url}")
     logging.info(f"Video Title: {video_title}")
@@ -78,35 +76,54 @@ def cli(video_url, force, expert_prompt, market_prompt, categories, log_level):
         logging.info("Video is finance-related. Proceeding with transcript fetching and summarization.")
         transcript = get_transcript(video_url)
 
-        if transcript:
-            transcript_path = os.path.join(output_dir, "transcript.txt")
-            with open(transcript_path, "w") as f:
-                f.write(transcript)
-            logging.info(f"Transcript saved to {transcript_path}")
-            logging.debug(f"Transcript content (first 100 chars): {transcript[:100]}...")
+        if not transcript:
+            raise TranscriptError("Failed to fetch transcript. Exiting summarization process.")
 
-            logging.info("Summarizing expert opinions...")
-            expert_summary = summarize_content(transcript, expert_prompt)
-            with open(expert_summary_path, "w") as f:
-                f.write(expert_summary)
-            logging.info(f"Expert summary saved to {expert_summary_path}")
-            logging.debug(f"Expert summary content (first 100 chars): {expert_summary[:100]}...")
+        transcript_path = os.path.join(output_dir, "transcript.txt")
+        with open(transcript_path, "w") as f:
+            f.write(transcript)
+        logging.info(f"Transcript saved to {transcript_path}")
+        logging.debug(f"Transcript content (first 100 chars): {transcript[:100]}...")
 
-            logging.info("Summarizing market direction and operation suggestions...")
-            market_summary = summarize_content(transcript, market_prompt)
-            with open(market_summary_path, "w") as f:
-                f.write(market_summary)
-            logging.info(f"Market summary saved to {market_summary_path}")
-            logging.debug(f"Market summary content (first 100 chars): {market_summary[:100]}...")
+        logging.info("Summarizing expert opinions...")
+        expert_summary = summarize_content(transcript, expert_prompt)
+        with open(expert_summary_path, "w") as f:
+            f.write(expert_summary)
+        logging.info(f"Expert summary saved to {expert_summary_path}")
+        logging.debug(f"Expert summary content (first 100 chars): {expert_summary[:100]}...")
 
-            move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path, OBSIDIAN_VAULT_PATH)
+        logging.info("Summarizing market direction and operation suggestions...")
+        market_summary = summarize_content(transcript, market_prompt)
+        with open(market_summary_path, "w") as f:
+            f.write(market_summary)
+        logging.info(f"Market summary saved to {market_summary_path}")
+        logging.debug(f"Market summary content (first 100 chars): {market_summary[:100]}...")
 
-        else:
-            logging.error("Failed to fetch transcript. Exiting summarization process.")
-            sys.exit(1)
+        move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path, OBSIDIAN_VAULT_PATH)
+
     else:
         logging.info(f"Video is not finance-related ({video_category}). Skipping transcript fetching and summarization.")
-    logging.info("Application finished.")
+
+@click.command()
+@click.argument('video_url', type=str)
+@click.option('--force', is_flag=True, help='Force reprocessing of the video even if it has been processed before.')
+@click.option('--expert-prompt', default=DEFAULT_EXPERT_PROMPT, help='Custom prompt for expert opinions summary.')
+@click.option('--market-prompt', default=DEFAULT_MARKET_PROMPT, help='Custom prompt for market direction summary.')
+@click.option('--categories', default=','.join(DEFAULT_CATEGORIES), help='Comma-separated list of categories for video classification.')
+@click.option('--log-level', default='INFO', type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], case_sensitive=False), help='Set the logging level.')
+def cli(video_url, force, expert_prompt, market_prompt, categories, log_level):
+    configure_logging(log_level)
+    logging.info("Application started.")
+    try:
+        process_video(video_url, force, expert_prompt, market_prompt, categories)
+    except (VideoMetadataError, TranscriptError) as e:
+        logging.error(f"Application error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logging.critical(f"An unexpected error occurred: {e}", exc_info=True)
+        sys.exit(1)
+    finally:
+        logging.info("Application finished.")
     sys.exit(0)
 
 if __name__ == "__main__":
