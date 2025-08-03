@@ -3,6 +3,8 @@ import os
 import shutil
 from unittest.mock import patch, MagicMock
 from casablanca.file_utils import move_to_obsidian
+from casablanca.models import Video
+from datetime import datetime
 
 @pytest.fixture
 def setup_temp_files(tmp_path):
@@ -22,7 +24,8 @@ def test_move_to_obsidian_success(mock_log_info, mock_shutil_move, mock_makedirs
     video_date = "2023-01-01"
     obsidian_path = "/mock/obsidian/vault"
 
-    move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path, obsidian_path)
+    video = Video(title=video_title, description="Test Description", published_at=datetime(2023, 1, 1))
+    move_to_obsidian(video, expert_summary_path, market_summary_path, obsidian_path)
 
     mock_makedirs.assert_called_once()
     assert mock_shutil_move.call_count == 2
@@ -40,7 +43,8 @@ def test_move_to_obsidian_error_handling(mock_log_error, mock_log_info, mock_log
     video_date = "2023-01-01"
     obsidian_path = "/mock/obsidian/vault"
 
-    move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path, obsidian_path)
+    video = Video(title=video_title, description="Test Description", published_at=datetime(2023, 1, 1))
+    move_to_obsidian(video, expert_summary_path, market_summary_path, obsidian_path)
 
     mock_log_error.assert_called_once_with(f"Error moving summary files: Permission denied")
 
@@ -52,6 +56,7 @@ def test_move_to_obsidian_no_obsidian_path(mock_log_warning):
     market_summary_path = "/tmp/market.md"
     obsidian_path = None
 
-    move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path, obsidian_path)
+    video = Video(title=video_title, description="Test Description", published_at=datetime(2023, 1, 1))
+    move_to_obsidian(video, expert_summary_path, market_summary_path, obsidian_path)
 
     mock_log_warning.assert_called_once_with("OBSIDIAN_VAULT_PATH not set. Skipping move to Obsidian.")
