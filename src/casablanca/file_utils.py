@@ -15,6 +15,7 @@ def sanitize_title(title):
 
 def generate_output_paths(video_id):
     output_dir = os.path.join("outputs", video_id)
+    os.makedirs(output_dir, exist_ok=True)
     expert_summary_path = os.path.join(output_dir, "expert_summary.md")
     market_summary_path = os.path.join(output_dir, "market_summary.md")
     return output_dir, expert_summary_path, market_summary_path

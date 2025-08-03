@@ -31,11 +31,15 @@ class VideoProcessor:
         return False
 
     def _classify_video(self, video_title, video_description, categories):
-        categories_list = [c.strip() for c in categories.split(',')]
-        logging.debug(f"Using categories: {categories_list}")
-        video_category = self.gemini_service.get_video_category(video_title, video_description, categories_list)
-        logging.info(f"Video Category: {video_category}")
-        return video_category
+        try:
+            categories_list = [c.strip() for c in categories.split(',')]
+            logging.debug(f"Using categories: {categories_list}")
+            video_category = self.gemini_service.get_video_category(video_title, video_description, categories_list)
+            logging.info(f"Video Category: {video_category}")
+            return video_category
+        except GeminiServiceError as e:
+            logging.error(f"Video classification failed: {e}")
+            raise
 
     def _process_finance_video(self, video_url, output_dir, expert_summary_path, market_summary_path, expert_prompt, market_prompt, video: Video):
         logging.info("Video is finance-related. Proceeding with transcript fetching and summarization.")
@@ -70,7 +74,6 @@ class VideoProcessor:
         from .url_utils import extract_video_id
         video_id = extract_video_id(video_url)
         output_dir, expert_summary_path, market_summary_path = generate_output_paths(video_id)
-        os.makedirs(output_dir, exist_ok=True)
 
         video = self._get_video_info(video_url)
 

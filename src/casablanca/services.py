@@ -77,13 +77,13 @@ class GeminiService:
             return response.text.strip()
         except genai.types.BlockedPromptException as e:
             logging.error(f"Gemini API video categorization failed due to blocked prompt: {e}")
-            return "Error"
+            raise GeminiServiceError(f"Gemini API video categorization failed due to blocked prompt: {e}") from e
         except genai.types.StopCandidateException as e:
             logging.error(f"Gemini API video categorization failed due to stop candidate: {e}")
-            return "Error"
+            raise GeminiServiceError(f"Gemini API video categorization failed due to stop candidate: {e}") from e
         except Exception as e:
             logging.error(f"An unexpected error occurred during Gemini API video categorization: {e}")
-            return "Error"
+            raise GeminiServiceError(f"An unexpected error occurred during Gemini API video categorization: {e}") from e
 
     def summarize_content(self, text, prompt):
         try:

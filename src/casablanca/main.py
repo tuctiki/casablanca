@@ -39,7 +39,7 @@ def cli(video_url, force, expert_prompt, market_prompt, categories, log_level):
     processor = VideoProcessor(youtube_service, gemini_service, OBSIDIAN_VAULT_PATH, DEFAULT_CATEGORIES)
     try:
         processor.process(video_url, force, expert_prompt, market_prompt, categories)
-    except (VideoMetadataError, TranscriptError) as e:
+    except (VideoMetadataError, TranscriptError, GeminiServiceError) as e:
         logging.error(f"Application error: {e}")
         sys.exit(1)
     except Exception as e:

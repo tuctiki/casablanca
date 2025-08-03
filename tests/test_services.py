@@ -155,8 +155,8 @@ def test_gemini_service_get_video_category_blocked_prompt(gemini_service):
     title = "Video Title"
     description = "Video Description"
     categories = ["Finance", "News"]
-    category = service.get_video_category(title, description, categories)
-    assert category == "Error"
+    with pytest.raises(GeminiServiceError, match="Gemini API video categorization failed due to blocked prompt: Blocked"):
+        service.get_video_category(title, description, categories)
 
 def test_gemini_service_get_video_category_stop_candidate(gemini_service):
     service, mock_generative_model, _ = gemini_service
@@ -165,8 +165,8 @@ def test_gemini_service_get_video_category_stop_candidate(gemini_service):
     title = "Video Title"
     description = "Video Description"
     categories = ["Finance", "News"]
-    category = service.get_video_category(title, description, categories)
-    assert category == "Error"
+    with pytest.raises(GeminiServiceError, match="Gemini API video categorization failed due to stop candidate: Stop"):
+        service.get_video_category(title, description, categories)
 
 def test_gemini_service_get_video_category_other_exception(gemini_service):
     service, mock_generative_model, _ = gemini_service
@@ -175,8 +175,8 @@ def test_gemini_service_get_video_category_other_exception(gemini_service):
     title = "Video Title"
     description = "Video Description"
     categories = ["Finance", "News"]
-    category = service.get_video_category(title, description, categories)
-    assert category == "Error"
+    with pytest.raises(GeminiServiceError, match="An unexpected error occurred during Gemini API video categorization: Some other error"):
+        service.get_video_category(title, description, categories)
 
 def test_gemini_service_summarize_content_success(gemini_service):
     service, mock_generative_model, mock_configure = gemini_service
