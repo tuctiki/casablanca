@@ -3,9 +3,12 @@ import google.generativeai as genai
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
+from datetime import datetime
 
 from .config import DEFAULT_TRANSCRIPT_LANGUAGE
 from .url_utils import extract_video_id
+from .exceptions import VideoMetadataError, TranscriptError, GeminiServiceError
+from .models import Video
 
 class YouTubeService:
     def __init__(self, api_key):
@@ -16,25 +19,25 @@ class YouTubeService:
             video_id = extract_video_id(video_url)
             if not video_id:
                 logging.error(f"Invalid video URL: {video_url}")
-                return None
+                raise VideoMetadataError(f"Invalid video URL: {video_url}")
             request = self.youtube.videos().list(part="snippet", id=video_id)
             response = request.execute()
             if response["items"]:
                 snippet = response["items"][0]["snippet"]
-                return {
-                    "title": snippet["title"],
-                    "description": snippet["description"],
-                    "publishedAt": snippet["publishedAt"]
-                }
+                return Video(
+                    title=snippet["title"],
+                    description=snippet["description"],
+                    published_at=datetime.strptime(snippet["publishedAt"], "%Y-%m-%dT%H:%M:%SZ")
+                )
             else:
                 logging.error(f"No video found for ID: {video_id}")
-                return None
+                raise VideoMetadataError(f"No video found for ID: {video_id}")
         except HttpError as e:
             logging.error(f"HTTP error fetching video metadata for {video_url}: {e}")
-            return None
+            raise VideoMetadataError(f"HTTP error fetching video metadata for {video_url}: {e}") from e
         except Exception as e:
             logging.error(f"An unexpected error occurred while fetching video metadata for {video_url}: {e}")
-            return None
+            raise VideoMetadataError(f"An unexpected error occurred while fetching video metadata for {video_url}: {e}") from e
 
     def get_transcript(self, video_url):
         try:
@@ -47,10 +50,10 @@ class YouTubeService:
             return transcript_text
         except (NoTranscriptFound, TranscriptsDisabled) as e:
             logging.error(f"Transcript not available for {video_url}: {e}")
-            return None
+            raise TranscriptError(f"Transcript not available for {video_url}: {e}") from e
         except Exception as e:
             logging.error(f"An unexpected error occurred while fetching transcript for {video_url}: {e}")
-            return None
+            raise TranscriptError(f"An unexpected error occurred while fetching transcript for {video_url}: {e}") from e
 
 class GeminiService:
     def __init__(self, api_key):
@@ -90,4 +93,4 @@ class GeminiService:
             return response.text
         except Exception as e:
             logging.error(f"Gemini API summarization failed: {e}")
-            return "Error: Could not generate summary."
+            raise GeminiServiceError(f"Gemini API summarization failed: {e}") from e

@@ -10,10 +10,6 @@ from .config import OBSIDIAN_VAULT_PATH, DEFAULT_EXPERT_PROMPT, DEFAULT_MARKET_P
 from .services import YouTubeService, GeminiService
 
 def configure_logging(log_level):
-    # Clear existing handlers to prevent duplicate logs
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
-
     # Set up console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
@@ -27,11 +23,14 @@ def configure_logging(log_level):
     # Set the logging level
     logging.root.setLevel(getattr(logging, log_level.upper()))
 
-class VideoMetadataError(Exception):
-    pass
+from datetime import datetime
+import click
 
-class TranscriptError(Exception):
-    pass
+from .file_utils import move_to_obsidian, sanitize_title, generate_output_paths
+from .config import OBSIDIAN_VAULT_PATH, DEFAULT_EXPERT_PROMPT, DEFAULT_MARKET_PROMPT, DEFAULT_CATEGORIES, YOUTUBE_API_KEY, GEMINI_API_KEY
+from .services import YouTubeService, GeminiService
+from .exceptions import VideoMetadataError, TranscriptError, GeminiServiceError
+from .models import Video
 
 class VideoProcessor:
     def __init__(self, youtube_service, gemini_service, obsidian_vault_path, default_categories):
@@ -40,22 +39,18 @@ class VideoProcessor:
         self.obsidian_vault_path = obsidian_vault_path
         self.default_categories = default_categories
 
-    def _get_video_info(self, video_url):
-        video_metadata = self.youtube_service.get_video_metadata(video_url)
-        if not video_metadata:
+    def _get_video_info(self, video_url) -> Video:
+        video = self.youtube_service.get_video_metadata(video_url)
+        if not video:
             raise VideoMetadataError("Failed to get video metadata.")
 
-        logging.debug(f"Video metadata: {video_metadata}")
+        logging.debug(f"Video metadata: {video}")
+        return video
 
-        video_title = video_metadata["title"]
-        video_description = video_metadata["description"]
-        video_date = datetime.strptime(video_metadata["publishedAt"], "%Y-%m-%dT%H:%M:%SZ").strftime("%Y-%m-%d")
-        return video_title, video_description, video_date
-
-    def _check_existing_output(self, video_id, video_title, video_date, force):
+    def _check_existing_output(self, video_id, video: Video, force):
         if not force and self.obsidian_vault_path:
-            sanitized_title = sanitize_title(video_title)
-            date_folder = video_date
+            sanitized_title = sanitize_title(video.title)
+            date_folder = video.date
             obsidian_dest_folder = os.path.expanduser(os.path.join(self.obsidian_vault_path, date_folder, sanitized_title))
             if os.path.exists(obsidian_dest_folder):
                 logging.info(f"Obsidian folder for {video_id} already exists. Skipping.")
@@ -69,7 +64,7 @@ class VideoProcessor:
         logging.info(f"Video Category: {video_category}")
         return video_category
 
-    def _process_finance_video(self, video_url, output_dir, expert_summary_path, market_summary_path, expert_prompt, market_prompt, video_title, video_date):
+    def _process_finance_video(self, video_url, output_dir, expert_summary_path, market_summary_path, expert_prompt, market_prompt, video: Video):
         logging.info("Video is finance-related. Proceeding with transcript fetching and summarization.")
         transcript = self.youtube_service.get_transcript(video_url)
 
@@ -96,7 +91,7 @@ class VideoProcessor:
         logging.info(f"Market summary saved to {market_summary_path}")
         logging.debug(f"Market summary content (first 100 chars): {market_summary[:100]}...")
 
-        move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path, self.obsidian_vault_path)
+        move_to_obsidian(video, expert_summary_path, market_summary_path, self.obsidian_vault_path)
 
     def process(self, video_url, force, expert_prompt, market_prompt, categories):
         from .url_utils import extract_video_id
@@ -104,19 +99,19 @@ class VideoProcessor:
         output_dir, expert_summary_path, market_summary_path = generate_output_paths(video_id)
         os.makedirs(output_dir, exist_ok=True)
 
-        video_title, video_description, video_date = self._get_video_info(video_url)
+        video = self._get_video_info(video_url)
 
-        if self._check_existing_output(video_id, video_title, video_date, force):
+        if self._check_existing_output(video_id, video, force):
             return
 
         logging.info(f"Processing video URL: {video_url}")
-        logging.info(f"Video Title: {video_title}")
-        logging.info(f"Video Description: {video_description[:100]}...")
+        logging.info(f"Video Title: {video.title}")
+        logging.info(f"Video Description: {video.description[:100]}...")
 
-        video_category = self._classify_video(video_title, video_description, categories)
+        video_category = self._classify_video(video.title, video.description, categories)
 
         if video_category in ["Finance", "News"]:
-            self._process_finance_video(video_url, output_dir, expert_summary_path, market_summary_path, expert_prompt, market_prompt, video_title, video_date)
+            self._process_finance_video(video_url, output_dir, expert_summary_path, market_summary_path, expert_prompt, market_prompt, video)
         else:
             logging.info(f"Video is not finance-related ({video_category}). Skipping transcript fetching and summarization.")
 

@@ -4,6 +4,8 @@ import logging
 
 import re
 
+from .models import Video
+
 def sanitize_title(title):
     # Remove characters that are not alphanumeric, spaces, hyphens, or underscores
     sanitized = re.sub(r'[^a-zA-Z0-9\s\-_]', '', title)
@@ -17,13 +19,13 @@ def generate_output_paths(video_id):
     market_summary_path = os.path.join(output_dir, "market_summary.md")
     return output_dir, expert_summary_path, market_summary_path
 
-def move_to_obsidian(video_title, video_date, expert_summary_path, market_summary_path, obsidian_path):
+def move_to_obsidian(video: Video, expert_summary_path, market_summary_path, obsidian_path):
     if not obsidian_path:
         logging.warning("OBSIDIAN_VAULT_PATH not set. Skipping move to Obsidian.")
         return
 
-    sanitized_title = sanitize_title(video_title)
-    date_folder = video_date
+    sanitized_title = sanitize_title(video.title)
+    date_folder = video.date
     obsidian_dest_folder = os.path.expanduser(os.path.join(obsidian_path, date_folder, sanitized_title))
     
     try:
