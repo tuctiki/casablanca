@@ -10,3 +10,4 @@ casablanca.log
 coverage.xml
 src/casablanca.egg-info/
 .coverage
+.DS_Store
